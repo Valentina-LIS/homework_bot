@@ -3,9 +3,12 @@ import os
 import sys
 import time
 from http import HTTPStatus
+
 import telegram
 import requests
 from dotenv import load_dotenv
+
+from exception import HTTPErrorException
 
 load_dotenv()
 
@@ -28,15 +31,13 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-        return True
-    logging.critical('Отсутствуют обязательные переменные окружения.')
-    return False
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
+        logging.debug('Началась отправка сообщения.')
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=message
@@ -55,16 +56,18 @@ def get_api_answer(timestamp):
     try:
         payload = {'from_date': timestamp}
         homeworks = requests.get(ENDPOINT, headers=HEADERS, params=payload)
-        logging.debug('Отправка запроса к API.')
+        logging.debug(
+            "Отправка GET-запроса на {ENDPOINT} с {HEADERS} "
+            f"и со следующими параметрами {payload}."
+        )
         if homeworks.status_code != HTTPStatus.OK:
-            logging.error('Эдпоинт недоступен.')
-            raise Exception('Эдпоинт недоступен.')
+            logging.error('Эндпоинт недоступен.')
+            raise HTTPErrorException('Эндпоинт недоступен.')
         return homeworks.json()
     except requests.RequestException as error:
         logging.error('Возникла ошибка подключения.', error)
     except Exception as error:
-        logging.error('Ошибка при подключении к эдпоинту.', error)
-        raise Exception('Ошибка при подключении к эдпоинту.', error)
+        raise Exception('Ошибка при подключении к эндпоинту.', error)
 
 
 def check_response(response):
@@ -104,8 +107,9 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-    if check_tokens() is False:
-        raise SystemExit('Программа принудительно остановлена.')
+    if not check_tokens():
+        logging.critical('Отсутствуют обязательные переменные окружения.')
+        sys.exit(1)
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
@@ -114,10 +118,9 @@ def main():
             response = get_api_answer(timestamp)
             timestamp = response.get("current_date")
             homeworks = check_response(response)
-            if homeworks:
-                homework = homeworks[0]
-                message = parse_status(homework)
-                if message:
+            if len(homeworks) != 0:
+                message = parse_status(homeworks[0])
+                if message != 0:
                     send_message(bot, message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
