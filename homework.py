@@ -73,13 +73,10 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверяет ответ API на соответствие с документацией."""
     if not isinstance(response, dict):
-        logging.error('Ответ API не соответствует документации.')
         raise TypeError('Ответ API не соответствует документации.')
     elif 'homeworks' not in response:
-        logging.error('Отсутствует ключ "homeworks" в ответе API.')
         raise KeyError('Отсутствует ключ "homeworks" в ответе API.')
     elif not isinstance(response['homeworks'], list):
-        logging.error('Неверный тип данных для homeworks')
         raise TypeError('Неверный тип данных для homeworks')
     return response.get('homeworks')
 
@@ -113,14 +110,15 @@ def main():
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
+    previous_message = " "
     while True:
         try:
             response = get_api_answer(timestamp)
             timestamp = response.get("current_date")
             homeworks = check_response(response)
-            if len(homeworks) != 0:
+            if len(homeworks) != previous_message:
                 message = parse_status(homeworks[0])
-                if message != 0:
+                if message != previous_message:
                     send_message(bot, message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'

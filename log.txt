@@ -1,3 +1,0 @@
-2023-10-07 23:46:02,999, DEBUG, Starting new HTTPS connection (1): practicum.yandex.ru:443
-2023-10-07 23:46:03,208, DEBUG, https://practicum.yandex.ru:443 "GET /api/user_api/homework_statuses/?from_date=1696711562 HTTP/1.1" 200 42
-2023-10-07 23:46:03,223, DEBUG, Отправка запроса к API.
