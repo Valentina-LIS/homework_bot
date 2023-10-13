@@ -8,7 +8,7 @@ import telegram
 import requests
 from dotenv import load_dotenv
 
-from exception import HTTPErrorException
+from exception import HTTPErrorException, TimeoutException
 
 load_dotenv()
 
@@ -37,7 +37,8 @@ def check_tokens():
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
-        logging.debug('Началась отправка сообщения.')
+        logging.debug(
+            f'Бот начал отправку сообщения "{message}" в Telegram чат.')
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=message
@@ -64,10 +65,10 @@ def get_api_answer(timestamp):
             logging.error('Эндпоинт недоступен.')
             raise HTTPErrorException('Эндпоинт недоступен.')
         return homeworks.json()
+    except requests.Timeout as error:
+        raise TimeoutException('Ошибка при подключении к эндпоинту.', error)
     except requests.RequestException as error:
         logging.error('Возникла ошибка подключения.', error)
-    except Exception as error:
-        raise Exception('Ошибка при подключении к эндпоинту.', error)
 
 
 def check_response(response):
@@ -90,7 +91,7 @@ def parse_status(homework):
             logging.error(
                 f'Статус {homework_status} невозможно обработать'
             )
-            raise Exception(
+            raise ValueError(
                 'Неожиданный статус домашней работы в ответе API'
             )
         verdict = HOMEWORK_VERDICTS[homework_status]
@@ -116,7 +117,7 @@ def main():
             response = get_api_answer(timestamp)
             timestamp = response.get("current_date")
             homeworks = check_response(response)
-            if len(homeworks) != previous_message:
+            if homeworks:
                 message = parse_status(homeworks[0])
                 if message != previous_message:
                     send_message(bot, message)
